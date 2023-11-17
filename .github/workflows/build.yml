@@ -1,6 +1,12 @@
 name: Build
 
-on: [push]
+on:
+  push:
+    branches:
+      - master
+
+env:
+  go_version: 1.21
 
 jobs:
   build:
@@ -9,10 +15,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Go 1.21
+      - name: Setup Go ${{ env.go_version }}
         uses: actions/setup-go@v4
         with:
-          go-version: 1.21
+          go-version: ${{ env.go_version }}
           cache-dependency-path: go.sum
 
       - name: Install dependencies
@@ -20,3 +26,16 @@ jobs:
 
       - name: Build
         run: go build ./...
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ghcr.io/${{ github.repository }}:latest

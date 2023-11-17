@@ -20,7 +20,7 @@ func main() {
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	viper.SetDefault("http.host", "localhost")
+	viper.SetDefault("http.host", "0.0.0.0")
 	viper.SetDefault("http.port", 8080)
 
 	viper.SetDefault("mysql.user", "root")
