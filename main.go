@@ -107,10 +107,12 @@ func main() {
 	}
 }
 
+var InvalidUuid = errors.New("invalid uuid")
+
 func formatUuid(input string) (string, error) {
 	uuid := strings.ReplaceAll(input, "-", "")
 	if len(uuid) != 32 {
-		return "", errors.New("invalid uuid")
+		return "", InvalidUuid
 	}
 
 	return uuid[0:8] + "-" + uuid[8:12] + "-" + uuid[12:16] + "-" + uuid[16:20] + "-" + uuid[20:], nil
