@@ -85,7 +85,14 @@ func main() {
 			return
 		}
 
+		if profileResp.StatusCode != http.StatusOK && profileResp.StatusCode != http.StatusNoContent {
+			// TODO: log response
+			response.WriteHeader(500)
+			return
+		}
+
 		response.Header().Set("Content-Type", "application/json")
+		response.WriteHeader(profileResp.StatusCode)
 
 		_, err = io.Copy(response, profileResp.Body)
 		if err != nil {
