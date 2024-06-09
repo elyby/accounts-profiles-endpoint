@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
@@ -17,6 +18,13 @@ import (
 )
 
 func main() {
+	err := sentry.Init(sentry.ClientOptions{})
+	if err != nil {
+		panic(err)
+	}
+
+	defer sentry.Flush(2 * time.Second)
+
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
@@ -80,14 +88,16 @@ func main() {
 
 		profileResp, err := http.Get(profileUrl)
 		if err != nil {
-			// TODO: log reason
+			sentry.CaptureException(fmt.Errorf("received invalid response from Chrly service: %w", err))
 			response.WriteHeader(500)
+
 			return
 		}
 
 		if profileResp.StatusCode != http.StatusOK && profileResp.StatusCode != http.StatusNoContent {
-			// TODO: log response
+			sentry.CaptureException(fmt.Errorf("received unsuccessful response code from Chrly servicer: %d. error is %w", profileResp.StatusCode, err))
 			response.WriteHeader(500)
+
 			return
 		}
 
@@ -96,7 +106,9 @@ func main() {
 
 		_, err = io.Copy(response, profileResp.Body)
 		if err != nil {
+			sentry.CaptureException(fmt.Errorf("unable to write response body: %w", err))
 			response.WriteHeader(500)
+
 			return
 		}
 	}))
