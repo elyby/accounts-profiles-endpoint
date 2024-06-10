@@ -18,9 +18,21 @@ import (
 )
 
 func main() {
-	err := sentry.Init(sentry.ClientOptions{})
+	err := sentry.Init(sentry.ClientOptions{
+		Integrations: func(integrations []sentry.Integration) []sentry.Integration {
+			nDeleted := 0
+			for i, integration := range integrations {
+				if integration.Name() == "Modules" {
+					integrations[i] = integrations[len(integrations)-(nDeleted+1)]
+					nDeleted++
+				}
+			}
+
+			return integrations[:len(integrations)-nDeleted]
+		},
+	})
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("unable to initialize Sentry: %w", err))
 	}
 
 	defer sentry.Flush(2 * time.Second)
@@ -48,7 +60,7 @@ func main() {
 		viper.GetString("mysql.db"),
 	))
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("invalid MySQL connection params: %w", err))
 	}
 
 	db.SetConnMaxLifetime(time.Minute * 3)
@@ -57,7 +69,7 @@ func main() {
 
 	findAccountByUuidStmt, err := db.Prepare("SELECT username FROM accounts WHERE uuid = ? LIMIT 1")
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("unable to prepare query: %w", err))
 	}
 
 	router := httprouter.New()
