@@ -93,9 +93,9 @@ func main() {
 			panic(err)
 		}
 
-		profileUrl := "http://skinsystem.ely.by/profile/" + username
+		profileUrl := fmt.Sprintf("http://skinsystem.ely.by/profile/%s?onUnknownProfileRespondWithUuid=%s", username, uuid)
 		if request.FormValue("unsigned") == "false" {
-			profileUrl += "?unsigned=false"
+			profileUrl += "&unsigned=false"
 		}
 
 		profileResp, err := http.Get(profileUrl)
@@ -106,7 +106,7 @@ func main() {
 			return
 		}
 
-		if profileResp.StatusCode != http.StatusOK && profileResp.StatusCode != http.StatusNoContent {
+		if profileResp.StatusCode != http.StatusOK {
 			sentry.CaptureException(fmt.Errorf("received unsuccessful response code from Chrly servicer: %d. error is %w", profileResp.StatusCode, err))
 			response.WriteHeader(500)
 
