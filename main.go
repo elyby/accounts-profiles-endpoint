@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -67,7 +68,12 @@ func main() {
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
 
-	findAccountByUuidStmt, err := db.Prepare("SELECT username FROM accounts WHERE uuid = ? LIMIT 1")
+	findUsernameByUuidStmt, err := db.Prepare("SELECT username FROM accounts WHERE uuid = ? LIMIT 1")
+	if err != nil {
+		panic(fmt.Errorf("unable to prepare query: %w", err))
+	}
+
+	findUuidAndCorrectUsernameByUsernameStmt, err := db.Prepare("SELECT uuid, username FROM accounts WHERE username = ? LIMIT 1")
 	if err != nil {
 		panic(fmt.Errorf("unable to prepare query: %w", err))
 	}
@@ -85,7 +91,7 @@ func main() {
 		}
 
 		var username string
-		err = findAccountByUuidStmt.QueryRow(uuid).Scan(&username)
+		err = findUsernameByUuidStmt.QueryRow(uuid).Scan(&username)
 		if errors.Is(err, sql.ErrNoRows) {
 			response.WriteHeader(204)
 			return
@@ -117,6 +123,36 @@ func main() {
 		response.WriteHeader(profileResp.StatusCode)
 
 		_, err = io.Copy(response, profileResp.Body)
+		if err != nil {
+			sentry.CaptureException(fmt.Errorf("unable to write response body: %w", err))
+			response.WriteHeader(500)
+
+			return
+		}
+	}))
+	router.GET("/api/mojang/profiles/:username", logRequestHandler(func(
+		response http.ResponseWriter,
+		request *http.Request,
+		params httprouter.Params,
+	) {
+		var username, uuid string
+		err = findUuidAndCorrectUsernameByUsernameStmt.QueryRow(params.ByName("username")).Scan(&uuid, &username)
+		if errors.Is(err, sql.ErrNoRows) {
+			response.WriteHeader(204)
+			return
+		} else if err != nil {
+			panic(err)
+		}
+
+		response.Header().Set("Content-Type", "application/json")
+		response.WriteHeader(http.StatusOK)
+
+		result, err := json.Marshal(map[string]string{
+			"id":   strings.ReplaceAll(uuid, "-", ""),
+			"name": username,
+		})
+
+		_, err = response.Write(result)
 		if err != nil {
 			sentry.CaptureException(fmt.Errorf("unable to write response body: %w", err))
 			response.WriteHeader(500)
