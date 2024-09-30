@@ -12,11 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/multierr"
 
-	db "ely.by/sessionserver/internal/db/mysql"
-	"ely.by/sessionserver/internal/http"
-	"ely.by/sessionserver/internal/logging/sentry"
-	"ely.by/sessionserver/internal/services/chrly"
-	"ely.by/sessionserver/internal/services/signer"
+	db "ely.by/accounts-profiles-endpoint/internal/db/mysql"
+	"ely.by/accounts-profiles-endpoint/internal/http"
+	"ely.by/accounts-profiles-endpoint/internal/logging/sentry"
+	"ely.by/accounts-profiles-endpoint/internal/services/chrly"
+	"ely.by/accounts-profiles-endpoint/internal/services/signer"
 )
 
 func Serve() error {

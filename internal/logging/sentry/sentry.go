@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 
-	"ely.by/sessionserver/internal/version"
+	"ely.by/accounts-profiles-endpoint/internal/version"
 )
 
 func InitWithConfig(config *viper.Viper) error {

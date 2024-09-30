@@ -1,4 +1,4 @@
-module ely.by/sessionserver
+module ely.by/accounts-profiles-endpoint
 
 go 1.23.0
 

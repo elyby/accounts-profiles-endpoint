@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"ely.by/sessionserver/internal/cmd"
+	"ely.by/accounts-profiles-endpoint/internal/cmd"
 )
 
 func main() {
