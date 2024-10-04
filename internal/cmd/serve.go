@@ -6,15 +6,17 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/etherlabsio/healthcheck/v2"
+	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/multierr"
 
 	db "ely.by/accounts-profiles-endpoint/internal/db/mysql"
 	"ely.by/accounts-profiles-endpoint/internal/http"
-	"ely.by/accounts-profiles-endpoint/internal/logging/sentry"
+	sentryLogging "ely.by/accounts-profiles-endpoint/internal/logging/sentry"
 	"ely.by/accounts-profiles-endpoint/internal/services/chrly"
 	"ely.by/accounts-profiles-endpoint/internal/services/signer"
 )
@@ -26,7 +28,7 @@ func Serve() error {
 	ctx, _ = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM, os.Kill)
 
 	var errors, err error
-	err = sentry.InitWithConfig(config)
+	err = sentryLogging.InitWithConfig(config)
 	if err != nil {
 		return fmt.Errorf("unable to initialize Sentry: %w", err)
 	}
@@ -52,7 +54,7 @@ func Serve() error {
 
 	r := gin.Default()
 	r.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
-	r.Use(sentry.ErrorMiddleware())
+	r.Use(sentryLogging.ErrorMiddleware())
 	r.Use(http.ErrorMiddleware())
 
 	r.GET("/healthcheck", gin.WrapH(healthcheck.Handler(
@@ -71,6 +73,8 @@ func Serve() error {
 	if err != nil {
 		return fmt.Errorf("unable to start a server: %w", err)
 	}
+
+	sentry.Flush(2 * time.Second)
 
 	return nil
 }

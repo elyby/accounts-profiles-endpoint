@@ -1,6 +1,8 @@
 package sentry
 
 import (
+	"strings"
+
 	"github.com/getsentry/sentry-go"
 	sentryGin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
@@ -12,6 +14,7 @@ import (
 func InitWithConfig(config *viper.Viper) error {
 	config.SetDefault("sentry.enable_tracing", false)
 	config.SetDefault("sentry.traces_sample_rate", 1.0)
+	config.SetDefault("sentry.profiles_sample_rate", 1.0)
 
 	sampleRate := config.GetFloat64("sentry.traces_sample_rate")
 
@@ -19,14 +22,15 @@ func InitWithConfig(config *viper.Viper) error {
 		Dsn:           viper.GetString("sentry.dsn"),
 		EnableTracing: viper.GetBool("sentry.enable_tracing"),
 		TracesSampler: func(ctx sentry.SamplingContext) float64 {
-			if ctx.Span.Name == "GET /healthcheck" {
+			if !strings.Contains(ctx.Span.Name, "/api") {
 				return 0
 			}
 
 			return sampleRate
 		},
-		Release:     version.Version(),
-		Environment: config.GetString("sentry.environment"),
+		ProfilesSampleRate: config.GetFloat64("sentry.profiles_sample_rate"),
+		Release:            version.Version(),
+		Environment:        config.GetString("sentry.environment"),
 		Integrations: func(integrations []sentry.Integration) []sentry.Integration {
 			nDeleted := 0
 			for i, integration := range integrations {
