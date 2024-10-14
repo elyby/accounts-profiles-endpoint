@@ -11,6 +11,7 @@ import (
 	"github.com/etherlabsio/healthcheck/v2"
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
+	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/multierr"
 
@@ -53,6 +54,7 @@ func Serve() error {
 	}
 
 	r := gin.Default()
+	pprof.Register(r)
 	r.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
 	r.Use(sentryLogging.ErrorMiddleware())
 	r.Use(http.ErrorMiddleware())
