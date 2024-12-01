@@ -154,9 +154,9 @@ func (s *MojangApi) createProfileResponse(
 				return nil, fmt.Errorf("unable to sign custom property: %w", err)
 			}
 		}
-		result = fmt.Appendf(result, `},{"name":"ely","value":"but why are you asking?","signature":%q}]}`, customPropertySignature)
+		result = fmt.Appendf(result, `},{"name":"ely","value":%q,"signature":%q}]}`, customPropertyValue, customPropertySignature)
 	} else {
-		result = fmt.Appendf(result, `},{"name":"ely","value":"but why are you asking?"}]}`)
+		result = fmt.Appendf(result, `},{"name":"ely","value":%q}]}`, customPropertyValue)
 	}
 
 	return result, nil
