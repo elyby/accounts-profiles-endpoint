@@ -16,6 +16,9 @@ var timeNow = time.Now
 
 var emptyTextures = []byte("{}")
 
+var customPropertyValue = []byte("but why are you asking?")
+var customPropertySignature []byte = nil
+
 type AccountsRepository interface {
 	FindUsernameByUuid(ctx context.Context, uuid string) (string, error)
 	// Should return uuid, correctly cased username and an error
@@ -139,20 +142,36 @@ func (s *MojangApi) createProfileResponse(
 	)
 
 	if sign {
-		signature, err := s.SignerService.Sign(context.Background(), encodedTexturesBuf)
+		textureSignature, err := s.signAndEncodeBase64(encodedTexturesBuf)
 		if err != nil {
 			return nil, fmt.Errorf("unable to sign textures: %w", err)
 		}
+		result = fmt.Appendf(result, `,"signature":%q`, textureSignature)
 
-		encodedSignatureBuf := make([]byte, base64.StdEncoding.EncodedLen(len(signature)))
-		base64.StdEncoding.Encode(encodedSignatureBuf, signature)
-
-		result = fmt.Appendf(result, `,"signature":%q`, encodedSignatureBuf)
+		if customPropertySignature == nil {
+			customPropertySignature, err = s.signAndEncodeBase64(customPropertyValue)
+			if err != nil {
+				return nil, fmt.Errorf("unable to sign custom property: %w", err)
+			}
+		}
+		result = fmt.Appendf(result, `},{"name":"ely","value":"but why are you asking?","signature":%q}]}`, customPropertySignature)
+	} else {
+		result = fmt.Appendf(result, `},{"name":"ely","value":"but why are you asking?"}]}`)
 	}
 
-	result = fmt.Appendf(result, `},{"name":"ely","value":"but why are you asking?"}]}`)
-
 	return result, nil
+}
+
+func (s *MojangApi) signAndEncodeBase64(data []byte) ([]byte, error) {
+	signature, err := s.SignerService.Sign(context.Background(), data)
+	if err != nil {
+		return nil, err
+	}
+
+	encodedSignatureBuf := make([]byte, base64.StdEncoding.EncodedLen(len(signature)))
+	base64.StdEncoding.Encode(encodedSignatureBuf, signature)
+
+	return encodedSignatureBuf, nil
 }
 
 var invalidUuid = errors.New("invalid uuid")
