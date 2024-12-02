@@ -15,6 +15,7 @@ import (
 var timeNow = time.Now
 
 var emptyTextures = []byte("{}")
+var customPropertyValue = []byte("but why are you asking?")
 
 type AccountsRepository interface {
 	FindUsernameByUuid(ctx context.Context, uuid string) (string, error)
@@ -83,7 +84,7 @@ func (s *MojangApi) getProfileByUuidHandler(c *gin.Context) {
 		textures = emptyTextures
 	}
 
-	serializedProfile, err := s.createProfileResponse(uuid, username, textures, c.Query("unsigned") == "false")
+	serializedProfile, err := s.createProfileResponse(c.Request.Context(), uuid, username, textures, c.Query("unsigned") == "false")
 	if err != nil {
 		c.Error(fmt.Errorf("unable to create a profile response: %w", err))
 		return
@@ -111,6 +112,7 @@ func (s *MojangApi) getUuidByUsernameHandler(c *gin.Context) {
 }
 
 func (s *MojangApi) createProfileResponse(
+	ctx context.Context,
 	uuid string,
 	username string,
 	texturesJson []byte,
@@ -139,20 +141,43 @@ func (s *MojangApi) createProfileResponse(
 	)
 
 	if sign {
-		signature, err := s.SignerService.Sign(context.Background(), encodedTexturesBuf)
+		textureSignature, err := s.signAndEncodeBase64(ctx, encodedTexturesBuf)
 		if err != nil {
 			return nil, fmt.Errorf("unable to sign textures: %w", err)
 		}
 
-		encodedSignatureBuf := make([]byte, base64.StdEncoding.EncodedLen(len(signature)))
-		base64.StdEncoding.Encode(encodedSignatureBuf, signature)
-
-		result = fmt.Appendf(result, `,"signature":%q`, encodedSignatureBuf)
+		result = fmt.Appendf(result, `,"signature":%q`, textureSignature)
 	}
 
-	result = fmt.Appendf(result, `},{"name":"ely","value":"but why are you asking?"}]}`)
+	result = fmt.Appendf(result, `},{"name":"ely","value":%q`, customPropertyValue)
+
+	if sign {
+		// Despite the fact that the signed value itself is always the same,
+		// the signature service may rotate keys and at some point the signature will change.
+		// It is better to avoid the cache for now and add it on the signature service side later.
+		customPropertySignature, err := s.signAndEncodeBase64(ctx, customPropertyValue)
+		if err != nil {
+			return nil, fmt.Errorf("unable to sign custom property: %w", err)
+		}
+
+		result = fmt.Appendf(result, `,"signature":%q`, customPropertySignature)
+	}
+
+	result = fmt.Appendf(result, `}]}`)
 
 	return result, nil
+}
+
+func (s *MojangApi) signAndEncodeBase64(ctx context.Context, data []byte) ([]byte, error) {
+	signature, err := s.SignerService.Sign(ctx, data)
+	if err != nil {
+		return nil, err
+	}
+
+	encodedSignatureBuf := make([]byte, base64.StdEncoding.EncodedLen(len(signature)))
+	base64.StdEncoding.Encode(encodedSignatureBuf, signature)
+
+	return encodedSignatureBuf, nil
 }
 
 var invalidUuid = errors.New("invalid uuid")
