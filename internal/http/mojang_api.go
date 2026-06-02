@@ -53,9 +53,9 @@ func NewMojangApi(
 
 func (s *MojangApi) DefineRoutes(r gin.IRouter) {
 	// https://sessionserver.mojang.com/session/minecraft/profile/:uuid
-	r.GET("/session/minecraft/profile/:uuid", s.getProfileByUuidHandler)
+	r.GET("/session/minecraft/profile/:uuid", s.createProfileByUuidHandler(true))
 	// https://api.minecraftservices.com/minecraft/profile/lookup/:uuid
-	r.GET("/minecraft/profile/lookup/:uuid", s.getProfileByUuidHandler)
+	r.GET("/minecraft/profile/lookup/:uuid", s.createProfileByUuidHandler(false))
 
 	// https://api.mojang.com/users/profiles/minecraft/:username
 	r.GET("/users/profiles/minecraft/:username", s.getUuidByUsernameHandler)
@@ -63,48 +63,58 @@ func (s *MojangApi) DefineRoutes(r gin.IRouter) {
 	r.GET("/minecraft/profile/lookup/name/:username", s.getUuidByUsernameHandler)
 
 	// Deprecated (Was used before proper unification with Mojang and must be deleted later)
-	r.GET("/api/minecraft/session/profile/:uuid", s.getProfileByUuidHandler)
+	r.GET("/api/minecraft/session/profile/:uuid", s.createProfileByUuidHandler(true))
 	// Deprecated (Was used before proper unification with Mojang and must be deleted later)
 	r.GET("/api/mojang/profiles/:username", s.getUuidByUsernameHandler)
 	// Deprecated (Was used before proper unification with Mojang and must be deleted later)
 	r.GET("/api/mojang/services/minecraft/profile/lookup/name/:username", s.getUuidByUsernameHandler)
 }
 
-func (s *MojangApi) getProfileByUuidHandler(c *gin.Context) {
-	uuid, err := formatUuid(c.Param("uuid"))
-	if err != nil {
-		c.Status(http.StatusNoContent)
-		return
-	}
+func (s *MojangApi) createProfileByUuidHandler(withTextures bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		uuid, err := formatUuid(c.Param("uuid"))
+		if err != nil {
+			c.Status(http.StatusNoContent)
+			return
+		}
 
-	username, err := s.AccountsRepository.FindUsernameByUuid(c.Request.Context(), uuid)
-	if err != nil {
-		c.Error(fmt.Errorf("unable to retrieve account information: %w", err))
-		return
-	}
+		username, err := s.AccountsRepository.FindUsernameByUuid(c.Request.Context(), uuid)
+		if err != nil {
+			c.Error(fmt.Errorf("unable to retrieve account information: %w", err))
+			return
+		}
 
-	if username == "" {
-		c.Status(http.StatusNoContent)
-		return
-	}
+		if username == "" {
+			c.Status(http.StatusNoContent)
+			return
+		}
 
-	textures, err := s.TexturesProvider.GetTexturesByUsername(c.Request.Context(), username)
-	if err != nil {
-		c.Error(fmt.Errorf("unable to retrieve textures information: %w", err))
-		return
-	}
+		if !withTextures {
+			c.JSON(http.StatusOK, gin.H{
+				"id":   strings.ReplaceAll(uuid, "-", ""),
+				"name": username,
+			})
+			return
+		}
 
-	if textures == nil {
-		textures = emptyTextures
-	}
+		textures, err := s.TexturesProvider.GetTexturesByUsername(c.Request.Context(), username)
+		if err != nil {
+			c.Error(fmt.Errorf("unable to retrieve textures information: %w", err))
+			return
+		}
 
-	serializedProfile, err := s.createProfileResponse(c.Request.Context(), uuid, username, textures, c.Query("unsigned") == "false")
-	if err != nil {
-		c.Error(fmt.Errorf("unable to create a profile response: %w", err))
-		return
-	}
+		if textures == nil {
+			textures = emptyTextures
+		}
 
-	c.Data(http.StatusOK, "application/json", serializedProfile)
+		serializedProfile, err := s.createProfileResponse(c.Request.Context(), uuid, username, textures, c.Query("unsigned") == "false")
+		if err != nil {
+			c.Error(fmt.Errorf("unable to create a profile response: %w", err))
+			return
+		}
+
+		c.Data(http.StatusOK, "application/json", serializedProfile)
+	}
 }
 
 func (s *MojangApi) getUuidByUsernameHandler(c *gin.Context) {
