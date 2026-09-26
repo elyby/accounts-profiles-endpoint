@@ -45,6 +45,10 @@ func (c *Chrly) GetTexturesByUsername(ctx context.Context, username string) ([]b
 		return nil, nil
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("received response from Chrly with status code %d", resp.StatusCode)
+	}
+
 	textures, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read response from Chrly: %w", err)
