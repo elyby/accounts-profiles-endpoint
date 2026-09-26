@@ -40,6 +40,7 @@ func (c *Chrly) GetTexturesByUsername(ctx context.Context, username string) ([]b
 	if err != nil {
 		return nil, fmt.Errorf("unable to perform a request to Chrly: %w", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNoContent {
 		return nil, nil
